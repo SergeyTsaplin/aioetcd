@@ -5,9 +5,9 @@ with open('README.md') as fd:
     long_description = fd.read()
 
 
-requires = [
+install_requires = [
+    'aiohttp'
 ]
-
 
 setup(
     name='aioetcd',
@@ -19,7 +19,7 @@ setup(
     license='MIT',
     url='https://github.com/SergeyTsaplin/aioetcd',
     packages=find_packages(exclude=['test', 'examples']),
-    install_requires=requires,
+    install_requires=install_requires,
     include_package_data=True,
     python_requires='>=3.5.3',
     zip_safe=True,
