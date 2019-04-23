@@ -1,0 +1,38 @@
+---
+kind: pipeline
+name: default
+
+steps:
+- name: tests37
+  image: python:3.7
+  commands:
+  - pip install tox
+  - tox
+  depends_on: [ clone ]
+- name: tests35
+  image: python:3.5
+  commands:
+  - pip install tox
+  - tox -e py35
+  depends_on: [ clone ]
+- name: tests36
+  image: python:3.6
+  commands:
+  - pip install tox
+  - tox -e py36
+  depends_on: [ clone ]
+- name: tests38
+  image: python:3.8-rc
+  commands:
+  - pip install tox
+  - tox -e py38
+  depends_on: [ clone ]
+
+---
+kind: pipline
+name: full
+steps:
+
+services:
+- name: etcd
+  image: quay.io/coreos/etcd:v2.3.8
