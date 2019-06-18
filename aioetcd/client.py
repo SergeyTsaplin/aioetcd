@@ -50,14 +50,8 @@ class Client:
         version_url = '/'.join((self.uri, 'version'))
         resp = await self.inner_client.get(version_url)
 
-        if resp.status != 200:
-            data = await resp.text()
-            raise exceptions.HttpError(data)
-        try:
-            data = await resp.json()
-            return models.VersionResponse.from_dict(data)
-        except Exception as ex:
-            raise ex
+        await _raise_for_status(resp, [200])
+        return await _process_response(resp, models.VersionResponse)
 
     @property
     def uri(self) -> str:
@@ -105,11 +99,15 @@ class KV:
             ttl=None,
             refresh=None,
             prev_exist=None
-    ):
+    ) -> models.SetResponse:
         """Set the value of the ``key`` or updates it if the ``key`` already
         exists.
         """
-        _ = await self.client.inner_client.put(self._get_url(key))
+        resp = await self.client.inner_client.put(
+            self._get_url(key), data={'value': value}
+        )
+        await _raise_for_status(resp, [200, 201])
+        return await _process_response(resp, models.SetResponse)
 
     async def wait(self, key, wait_index=None):
         """Wait for changes in the ``key``."""
@@ -127,7 +125,8 @@ class KV:
 
 
 T = typing.TypeVar(
-    'T', models.EtcdResponse, models.GetResponse
+    'T', models.EtcdResponse, models.GetResponse, models.VersionResponse,
+    models.SetResponse
 )
 
 

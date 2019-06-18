@@ -101,3 +101,28 @@ class GetResponse(EtcdResponse):
     def __init__(self, action: str, node: GetNode):
         self.action = action  # type: str
         self.node = node  # type GetNode
+
+
+class SetResponse(EtcdResponse):
+    _NODE_CLS = GetNode
+
+    def __init__(self, action: str, node: GetNode, prev_node: GetNode):
+        self.action = action
+        self.node = node
+        self.prev_node = prev_node
+
+    @classmethod
+    def from_dict(cls, data: typing.Dict):
+        action = data['action']
+        node = cls._NODE_CLS.from_dict(data['node'])
+        prev_node = cls._NODE_CLS.from_dict(data['prevNode'])
+        return cls(action, node, prev_node)
+
+    def __repr__(self):
+        return '{cls_name}(action="{action}", node={node}, ' \
+            'prev_node={prev_node})'.format(
+                cls_name=self.__class__.__name__,
+                action=self.action,
+                node=self.node,
+                prev_node=self.prev_node
+            )

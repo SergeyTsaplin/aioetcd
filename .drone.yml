@@ -32,6 +32,11 @@ steps:
 kind: pipline
 name: full
 steps:
+- name: tests37
+  image: python:3.7
+  commands:
+    - pip install tox
+    - tox
 
 services:
 - name: etcd
