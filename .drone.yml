@@ -7,7 +7,7 @@ steps:
   image: python:3.7
   commands:
   - pip install tox
-  - tox -e py37,flake8,mypy
+  - tox -e py37,flake8,mypy,black,docs
   depends_on: [ clone ]
 - name: tests35
   image: python:3.5
