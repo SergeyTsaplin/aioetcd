@@ -12,5 +12,5 @@ class ParseError(AioEtcdError):
 
 class EtcdError(AioEtcdError):
     def __init__(self, *args, **kwargs):
-        self.error_respnse = kwargs.pop('error_response')
+        self.error_response = kwargs.pop("error_response")
         super(EtcdError, self).__init__(*args, **kwargs)

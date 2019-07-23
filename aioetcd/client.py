@@ -12,15 +12,20 @@ from . import models, exceptions
 class Client:
     """V2 API client implementation."""
 
-    PREFIX = 'v2'
+    PREFIX = "v2"
 
     def __init__(
-            self, host: str = 'localhost', port: int = 2379,
-            protocol: str = 'http',
-            ca_cert=None, cert_key=None, cert_cert=None, timeout=None,
-            username: typing.Optional[str] = None,
-            password: typing.Optional[str] = None,
-            loop: typing.Optional[asyncio.AbstractEventLoop] = None
+        self,
+        host: str = "localhost",
+        port: int = 2379,
+        protocol: str = "http",
+        ca_cert=None,
+        cert_key=None,
+        cert_cert=None,
+        timeout=None,
+        username: typing.Optional[str] = None,
+        password: typing.Optional[str] = None,
+        loop: typing.Optional[asyncio.AbstractEventLoop] = None,
     ):
         """Initialize the etcd client."""
         self.host = host
@@ -31,27 +36,35 @@ class Client:
         self.cert_cert = cert_cert
         self.timeout = timeout
         self.loop = loop or asyncio.get_event_loop()
-        _auth = None
+        self._auth = None
         if username and password:
-            _auth = client.BasicAuth(
-                login=username, password=password,
-                encoding='utf-8'
+            self._auth = client.BasicAuth(
+                login=username, password=password, encoding="utf-8"
             )
         elif username or password:
             raise ValueError(
-                '`username` and `password` both must have a value or None'
+                "`username` and `password` both must have a value or None"
             )
-        self.inner_client = client.ClientSession(loop=self.loop, auth=_auth)
+        self.inner_client = client.ClientSession(
+            loop=self.loop, auth=self._auth
+        )
         self.kv = KV(self)
 
     async def version(self) -> models.VersionResponse:
         """Return etcd version response
         """
-        version_url = '/'.join((self.uri, 'version'))
+        version_url = "/".join((self.uri, "version"))
         resp = await self.inner_client.get(version_url)
 
         await _raise_for_status(resp, [200])
         return await _process_response(resp, models.VersionResponse)
+
+    async def close(self):
+        await self.inner_client.close()
+
+    @property
+    async def closed(self):
+        return self.inner_client.closed
 
     @property
     def uri(self) -> str:
@@ -59,7 +72,7 @@ class Client:
 
         :return: base uri
         """
-        return '{protocol}://{host}:{port}'.format(
+        return "{protocol}://{host}:{port}".format(
             protocol=self.protocol, host=self.host, port=self.port
         )
 
@@ -67,14 +80,14 @@ class Client:
 class KV:
     """Key-Value API implementation."""
 
-    PREFIX = 'keys'
+    PREFIX = "keys"
 
     def __init__(self, client: Client):
         """Initialize the key-value API subsystem."""
         self.client = client
 
     def _get_url(self, key) -> str:
-        return '/'.join(
+        return "/".join(
             (self.client.uri, self.client.PREFIX, self.PREFIX, key)
         )
 
@@ -93,18 +106,32 @@ class KV:
         return await _process_response(resp, models.GetResponse)
 
     async def set(
-            self,
-            key: str,
-            value: str,
-            ttl=None,
-            refresh=None,
-            prev_exist=None
+        self,
+        key: str,
+        value: str,
+        ttl: typing.Optional[int] = None,
+        prev_exist: typing.Optional[bool] = None,
     ) -> models.SetResponse:
         """Set the value of the ``key`` or updates it if the ``key`` already
         exists.
         """
+        payload = {"ttl": ttl if ttl else "", "value": value}
+        if prev_exist is not None:
+            payload["prevExist"] = "true" if prev_exist else "false"
         resp = await self.client.inner_client.put(
-            self._get_url(key), data={'value': value}
+            self._get_url(key), data=payload
+        )
+        await _raise_for_status(resp, [200, 201])
+        return await _process_response(resp, models.SetResponse)
+
+    async def refresh(
+        self, key, ttl: typing.Optional[int] = None, prev_exist=None
+    ):
+        payload = {"ttl": ttl if ttl else ""}
+        if prev_exist is not None:
+            payload["prevExist"] = "true" if prev_exist else "false"
+        resp = await self.client.inner_client.put(
+            self._get_url(key), data=payload
         )
         await _raise_for_status(resp, [200, 201])
         return await _process_response(resp, models.SetResponse)
@@ -125,14 +152,16 @@ class KV:
 
 
 T = typing.TypeVar(
-    'T', models.EtcdResponse, models.GetResponse, models.VersionResponse,
-    models.SetResponse
+    "T",
+    models.EtcdResponse,
+    models.GetResponse,
+    models.VersionResponse,
+    models.SetResponse,
 )
 
 
 async def _raise_for_status(
-        response: ClientResponse,
-        expected_codes: typing.Iterable[int] = (200,)
+    response: ClientResponse, expected_codes: typing.Iterable[int] = (200,)
 ):
     if response.status not in expected_codes:
         try:
@@ -140,34 +169,33 @@ async def _raise_for_status(
             error = models.ErrorResponse.from_dict(data)
         except client_exceptions.ContentTypeError:
             raise exceptions.HttpError(
-                'Error during request. Response code: {}, '
-                'reason: {}'.format(
-                    response.status, await response.text()
-                )
+                "Error during request. Response code: {}, "
+                "reason: {}".format(response.status, await response.text())
             )
         except (json.JSONDecodeError, TypeError, KeyError) as ex:
             raise exceptions.ParseError(
-                'Cannot parse the response: {}. '
-                'Original error is: {}'.format(
-                    await response.text(), ex
-                )
+                "Cannot parse the response: {}. "
+                "Original error is: {}".format(await response.text(), ex)
             )
         raise exceptions.EtcdError(error.message, error_response=error)
 
 
 async def _process_response(
-        response: ClientResponse,
-        model: typing.Type[T]
+    response: ClientResponse, model: typing.Type[T]
 ) -> T:
     try:
         payload = await response.json()
-        return model.from_dict(payload)
+        m = model.from_dict(payload)
+        m.set_headers(response.headers)
+        return m
     except (
-        client_exceptions.ContentTypeError, json.JSONDecodeError,
-        TypeError, KeyError
+        client_exceptions.ContentTypeError,
+        json.JSONDecodeError,
+        TypeError,
+        KeyError,
     ) as ex:
         raise exceptions.ParseError(
-            'Cannot parse the response: {}. Original error is: {}'.format(
+            "Cannot parse the response: {}. Original error is: {}".format(
                 await response.text(), ex
             )
         )
