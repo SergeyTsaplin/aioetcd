@@ -1,0 +1,7 @@
+syntax = "proto2";
+package snappb;
+
+message snapshot {
+	optional uint32 crc  = 1;
+	optional bytes data  = 2;
+}
