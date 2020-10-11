@@ -1,15 +1,19 @@
 import typing
 import asyncio
-import aiogrpc
-from grpc import aio, ssl_channel_credentials, Compression
-from grpc.aio import ChannelArgumentType
+
+# noinspection PyPackageRequirements
+from grpc import aio, ssl_channel_credentials, Compression  # type: ignore
+# noinspection PyPackageRequirements
+from grpc.aio import ChannelArgumentType  # type: ignore
 
 from .lease import LeaseApi
+from .kv import KVApi
+from .auth import AuthApi
 from .utils import AuthInterceptor
 
 
 if typing.TYPE_CHECKING:
-    from concurrent.futures._base import Executor
+    pass
 
 
 _GRPC_OPTIONS = typing.Sequence[typing.Tuple[str, typing.Any]]
@@ -27,14 +31,14 @@ class Client:
         cert_cert: typing.Optional[bytes] = None,
         grpc_options: typing.Optional[ChannelArgumentType] = None,
         grpc_compression: typing.Optional[Compression] = None,
-        timeout: int = 5,
+        timeout: typing.Optional[int] = None,
     ):
         self.endpoint = endpoint
         self.ssl = ssl
         self.interceptors = None
         if username:
             self.interceptors = [AuthInterceptor(username, password, self)]
-        self._channel = self._create_grpc_channel(
+        self.channel = self._create_grpc_channel(
             endpoint=endpoint,
             ssl=ssl,
             ca_cert=ca_cert,
@@ -43,7 +47,10 @@ class Client:
             options=grpc_options,
             compression=grpc_compression,
         )
-        self.lease: LeaseApi = LeaseApi(self._channel)
+        self.default_timeout = timeout
+        self.lease: LeaseApi = LeaseApi(self.channel)
+        self.kv: KVApi = KVApi(self)
+        self.auth: AuthApi = AuthApi(self)
 
     def _create_grpc_channel(
         self,
@@ -63,9 +70,7 @@ class Client:
                 interceptors=self.interceptors,
             )
         else:
-            credentials = ssl_channel_credentials(
-                ca_cert, cert_key, cert_cert
-            )
+            credentials = ssl_channel_credentials(ca_cert, cert_key, cert_cert)
             channel = aio.secure_channel(
                 endpoint,
                 credentials,

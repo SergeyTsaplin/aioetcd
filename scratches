@@ -1,5 +1,5 @@
 find . -name '*.proto' -exec cp {} ../aioetcd_new \;
-python3 -m grpc.tools.protoc -Iproto --python_out=rpc --grpc_python_out=rpc proto/*.proto
+python3 -m grpc.tools.protoc -Iproto --python_out=_rpc --grpc_python_out=rpc proto/*.proto
 
 docker run -d \
     -p 2379:2379 \
@@ -17,3 +17,45 @@ docker run -itd --rm\
     -p 2379:2379 \
     -p 2380:2380 \
     bitnami/etcd:3.4.7
+
+docker run -d \
+    -p 2379:2379 \
+    -p 2380:2380 \
+    --name etcd-v3.2 \
+    --volume=/tmp/etcd-data:/etcd-data \
+    gcr.io/etcd-development/etcd:v3.4.7 /usr/local/bin/etcd \
+    --name my-etcd-1 \
+    --data-dir /etcd-data \
+    --listen-client-urls http://0.0.0.0:2379 \
+    --advertise-client-urls http://0.0.0.0:2379 \
+    --listen-peer-urls http://0.0.0.0:2380 \
+    --initial-advertise-peer-urls http://0.0.0.0:2380 \
+    --initial-cluster my-etcd-1=http://0.0.0.0:2380 \
+    --initial-cluster-token 123456789 \
+    --initial-cluster-state new \
+    --auto-compaction-retention 1
+
+docker run -d \
+    -p 2377:2379 \
+    -p 2381:2380 \
+    --name etcd-v3.2-ssl \
+    -v /tmp/etcd-data3:/etcd-data \
+    -v $(pwd)/test_certs:/certs \
+    gcr.io/etcd-development/etcd:v3.2 \
+    /usr/local/bin/etcd \
+    --name my-etcd-2 \
+    --data-dir /etcd-data \
+    --listen-client-urls https://0.0.0.0:2379 \
+    --advertise-client-urls https://0.0.0.0:2377 \
+    --cert-file=/certs/server.pem \
+     --key-file=/certs/server-key.pem
+
+etcdctl user add root:root
+etcdctl role add root
+etcdctl user grant-role root root
+etcdctl auth enable
+
+etcdctl --endpoints=127.0.0.1:2377 --cacert=test_certs/ca.pem --insecure-skip-tls-verify=true user add root:root
+etcdctl --endpoints=127.0.0.1:2377 --cacert=test_certs/ca.pem --insecure-skip-tls-verify=true role add root
+etcdctl --endpoints=127.0.0.1:2377 --cacert=test_certs/ca.pem --insecure-skip-tls-verify=true user grant-role root root
+etcdctl --endpoints=127.0.0.1:2377 --cacert=test_certs/ca.pem --insecure-skip-tls-verify=true auth enable

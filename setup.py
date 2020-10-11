@@ -5,7 +5,8 @@ with open("README.md") as fd:
     long_description = fd.read()
 
 
-install_requires = ["grpcio>=1.32.0"]
+install_requires = ["grpcio>=1.32.0", "protobuf"]
+
 
 setup(
     name="aioetcd",

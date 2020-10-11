@@ -4,11 +4,11 @@ import typing
 import asyncio
 from dataclasses import dataclass
 
-from aioetcd._rpc import rpc_pb2_grpc
-from aioetcd._rpc import rpc_pb2
+from ._rpc import rpc_pb2_grpc
+from ._rpc import rpc_pb2
 from aioetcd.common import ResponseHeader
 
-_default_timeput = 5
+_default_timeout = 5
 
 
 @dataclass
@@ -66,8 +66,7 @@ class TimeToLiveResponse:
 
 
 class KeepAliveLease:
-    """Context manager for Keep Alive Leases
-    """
+    """Context manager for Keep Alive Leases"""
 
     def __init__(
         self,
@@ -84,17 +83,15 @@ class KeepAliveLease:
         self.finisher = asyncio.Event()
         self._keep_alive_task: typing.Optional[asyncio.Task] = None
         self._response_callback = etcd_response_callback
-        self._lease: typing.Optional[Lease] = None
 
     async def _run_keep_alive_task(self):
-        async with self.client.keep_alive(
+        async for response in self.client.keep_alive(
             self._lease_id, self.ttl // 2, self.finisher
-        ) as iterator:
-            async for r in iterator:
-                if self._response_callback is not None:
-                    asyncio.get_event_loop().create_task(
-                        self._response_callback(r)
-                    )
+        ):
+            if self._response_callback is not None:
+                asyncio.get_event_loop().create_task(
+                    self._response_callback(response)
+                )
 
     async def __aenter__(self) -> KeepAliveLease:
         lease = await self.client.grant(self.ttl)
@@ -109,10 +106,10 @@ class KeepAliveLease:
         self.finisher.set()
         if self._keep_alive_task and not self._keep_alive_task.done():
             self._keep_alive_task.cancel()
-            await asyncio.wait(self._keep_alive_task)
+            await asyncio.wait([self._keep_alive_task])
         self._keep_alive_task = None
         if self._lease_id is not None:
-            await self.client.revoke(self._lease.id)
+            await self.client.revoke(self._lease_id)
 
 
 async def keep_alive_request_generator(
@@ -179,8 +176,7 @@ class LeaseApi:
         )
 
     async def leases(self) -> LeasesResponse:
-        """Lists all existing leases.
-        """
+        """Lists all existing leases."""
         request = rpc_pb2.LeaseLeasesRequest()
         r = await self._lease_stub.LeaseLeases(request)
         return LeasesResponse(
@@ -191,7 +187,7 @@ class LeaseApi:
     def _keep_alive(
         self, request_iterator
     ) -> typing.AsyncGenerator[rpc_pb2.LeaseKeepAliveResponse]:
-        return self._lease_stub.LeaseKeepAlive.with_scope(request_iterator)
+        return self._lease_stub.LeaseKeepAlive(request_iterator)
 
     async def keep_alive(
         self,
@@ -208,15 +204,14 @@ class LeaseApi:
             is set. If not set, the requests will be sent infinitely
         """
 
-        async with self._keep_alive(
+        async for result in self._keep_alive(
             keep_alive_request_generator(id, period, finisher)
-        ) as result:
-            async for r in result:
-                yield KeepAliveResponse(
-                    header=ResponseHeader.from_protobuf(r.header),
-                    id=r.ID,
-                    ttl=r.TTL,
-                )
+        ):
+            yield KeepAliveResponse(
+                header=ResponseHeader.from_protobuf(result.header),
+                id=result.ID,
+                ttl=result.TTL,
+            )
 
     def keep_alive_context(
         self, ttl, *, response_callback=None

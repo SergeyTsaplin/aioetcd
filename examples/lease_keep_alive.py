@@ -10,7 +10,9 @@ async def keep_alive_callback(response):
 
 
 async def main(loop: asyncio.AbstractEventLoop):
-    client = Client(endpoint="localhost:2379")
+    client = Client(
+        endpoint="localhost:2379", username="root", password="root"
+    )
     async with client.lease.keep_alive_context(ttl=10) as lease:
         print("lease:", lease)
         print("leases:", await client.lease.leases())
