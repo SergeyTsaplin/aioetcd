@@ -10,7 +10,11 @@ from grpc.aio import (  # type: ignore
     UnaryUnaryClientInterceptor,
     ClientCallDetails,
 )
-from grpc.aio._call import UnaryUnaryCall, UnaryStreamCall, StreamStreamCall  # type: ignore
+from grpc.aio._call import (  # type: ignore
+    UnaryUnaryCall,
+    UnaryStreamCall,
+    StreamStreamCall,
+)
 from grpc.aio._typing import (  # type: ignore
     RequestType,
     ResponseType,
@@ -18,7 +22,6 @@ from grpc.aio._typing import (  # type: ignore
     ResponseIterableType,
 )
 
-# from grpc import AuthMetadataPlugin, metadata_call_credentials  # type: ignore
 
 if typing.TYPE_CHECKING:
     from .client import Client

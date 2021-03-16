@@ -1,5 +1,4 @@
 import typing
-import asyncio
 
 # noinspection PyPackageRequirements
 from grpc import aio, ssl_channel_credentials, Compression  # type: ignore

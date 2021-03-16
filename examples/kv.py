@@ -26,7 +26,8 @@ wNTWWedoAiEA0pU5UNsa1cSwADHI6WIbsimoSkbogkDq0QATw5OGypI=
 
 
 async def main() -> None:
-    # client = Client(endpoint="localhost:2377", ssl=True, username="root", password="root", ca_cert=CA_CERT)
+    # client = Client(endpoint="localhost:2377", ssl=True, username="root",
+    # password="root", ca_cert=CA_CERT)
     # client = Client(
     #     endpoint="localhost:2379", username="root", password="root"
     # )
@@ -35,7 +36,7 @@ async def main() -> None:
     print(put_response)
     range_response = await client.kv.range(b"/test_key", None)
     print(range_response)
-    ## Transaction
+    # Transaction
     txn_response = await client.kv.txn(
         compare=[
             Compare(

@@ -3,7 +3,6 @@ from __future__ import annotations
 import typing
 import asyncio
 from dataclasses import dataclass
-from typing_extensions import Protocol
 
 from ._rpc import rpc_pb2_grpc
 from ._rpc import rpc_pb2
@@ -63,7 +62,8 @@ class TimeToLiveResponse:
     id: int
     """The lease ID from the keep alive request."""
     ttl: int
-    """The remaining TTL in seconds for the lease; the lease will expire in under TTL+1 seconds."""
+    """The remaining TTL in seconds for the lease;
+    the lease will expire in under TTL+1 seconds."""
     granted_ttl: int
     """The initial granted time in seconds upon lease creation/renewal."""
     keys: typing.List[bytes]
@@ -134,7 +134,9 @@ async def _keep_alive_request_generator(
 
 class LeaseApi:
     def __init__(self, channel: Channel):
-        self._lease_stub: lease.LeaseStub = typing.cast(lease.LeaseStub, rpc_pb2_grpc.LeaseStub(channel))  # type: ignore
+        self._lease_stub: lease.LeaseStub = typing.cast(
+            lease.LeaseStub, rpc_pb2_grpc.LeaseStub(channel)  # type: ignore
+        )
 
     async def grant(self, ttl: int, id: int = 0) -> LeaseGrantResponse:
         """Creates a lease which expires if the server does not receive
@@ -159,7 +161,8 @@ class LeaseApi:
     async def revoke(self, id: int) -> LeaseRevokeResponse:
         """Revokes a lease. All keys attached to the lease will expire and be deleted.
 
-        :param id: the lease ID to revoke. When the ID is revoked, all associated keys will be deleted.
+        :param id: the lease ID to revoke. When the ID is revoked, all
+            associated keys will be deleted.
         """
         request = rpc_pb2.LeaseRevokeRequest(ID=id)
         r = await self._lease_stub.LeaseRevoke(request)
@@ -209,12 +212,14 @@ class LeaseApi:
         finisher: typing.Optional[asyncio.Event] = None,
     ) -> typing.AsyncGenerator[KeepAliveResponse, None]:
         """Keeps the lease alive by streaming keep alive requests from the client
-        to the server and streaming keep alive responses from the server to the client.
+        to the server and streaming keep alive responses from the server to
+        the client.
 
         :param id: the lease ID for the lease to keep alive.
         :param period: time in seconds between keepAlive requests
-        :param finisher: the keepAlive requests will be sent until the finisher event
-            is set. If not set, the requests will be sent infinitely
+        :param finisher: the keepAlive requests will be sent until the
+            finisher event is set. If not set, the requests will be sent
+            infinitely
         """
 
         async for result in self._keep_alive(
@@ -233,7 +238,8 @@ class LeaseApi:
         response_callback: typing.Optional[EtcdResponceCallback] = None,
     ) -> KeepAliveLease:
         """Keeps the lease alive by streaming keep alive requests from the client
-        to the server and streaming keep alive responses from the server to the client.
+        to the server and streaming keep alive responses from the server to
+        the client.
         """
         return KeepAliveLease(
             self, ttl, etcd_response_callback=response_callback

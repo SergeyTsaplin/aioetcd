@@ -1,6 +1,6 @@
 from __future__ import annotations
 import typing
-import asyncio
+
 from typing_extensions import Protocol
 
 from grpc.aio._channel import Channel  # type: ignore
