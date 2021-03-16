@@ -13,7 +13,7 @@ from .utils import AuthInterceptor
 
 
 if typing.TYPE_CHECKING:
-    pass
+    from grpc.aio._channel import Channel  # type: ignore
 
 
 _GRPC_OPTIONS = typing.Sequence[typing.Tuple[str, typing.Any]]
@@ -56,12 +56,12 @@ class Client:
         self,
         endpoint: str,
         ssl: bool = False,
-        ca_cert: bytes = None,
-        cert_key: bytes = None,
-        cert_cert: bytes = None,
+        ca_cert: typing.Optional[bytes] = None,
+        cert_key: typing.Optional[bytes] = None,
+        cert_cert: typing.Optional[bytes] = None,
         options: typing.Optional[ChannelArgumentType] = None,
         compression: typing.Optional[Compression] = None,
-    ):
+    ) -> Channel:
         if not ssl:
             channel = aio.insecure_channel(
                 target=endpoint,

@@ -52,10 +52,13 @@ class AuthInterceptor(
             client = self.client()
             if client is None:
                 raise RuntimeError("client does not exist")
-            response = await client.auth.authenticate(
-                name=self.username, password=self.password
-            )
-            self._metadata = (("token", response.token),)
+            if self.username is not None and self.password is not None:
+                response = await client.auth.authenticate(
+                    name=self.username, password=self.password
+                )
+                self._metadata = (("token", response.token),)
+            else:
+                raise RuntimeError("missing username or password")
 
     async def intercept_stream_stream(
         self,
