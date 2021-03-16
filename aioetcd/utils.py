@@ -1,7 +1,9 @@
+from __future__ import annotations
 import asyncio
 import weakref
+import typing
 
-from typing import Callable, Union
+from typing import Callable, Union, Optional
 
 from grpc.aio import (  # type: ignore
     StreamStreamClientInterceptor,
@@ -15,36 +17,39 @@ from grpc.aio._typing import (  # type: ignore
     RequestIterableType,
     ResponseIterableType,
 )
-from grpc import AuthMetadataPlugin, metadata_call_credentials  # type: ignore
 
+# from grpc import AuthMetadataPlugin, metadata_call_credentials  # type: ignore
 
-# class _EtcdTokenCallCredentials(AuthMetadataPlugin):
-#     def __init__(self, access_token):
-#         self._access_token = access_token
-#
-#     def __call__(self, context, callback):
-#         metadata = (("token", self._access_token),)
-#         callback(metadata, None)
+if typing.TYPE_CHECKING:
+    from .client import Client
+
 
 AUTHENTICATED_METHOD = b"/etcdserverpb.Auth/Authenticate"
 
 
 class AuthInterceptor(
-    StreamStreamClientInterceptor, UnaryUnaryClientInterceptor
+    StreamStreamClientInterceptor, UnaryUnaryClientInterceptor  # type: ignore
 ):
-    def __init__(self, username, password, client):
+    def __init__(
+        self, username: Optional[str], password: Optional[str], client: Client
+    ):
         self.username = username
         self.password = password
         self.client = weakref.ref(client)
         self._call_credentials = None
-        self._metadata = None
+        self._metadata: typing.Optional[
+            typing.Tuple[typing.Tuple[str, str]]
+        ] = None
         self._auth_lock = asyncio.Lock()
 
-    async def _authenticate(self):
+    async def _authenticate(self) -> None:
         async with self._auth_lock:
             if self._metadata is not None:  # Avoiding double authentication
                 return
-            response = await self.client().auth.authenticate(
+            client = self.client()
+            if client is None:
+                raise RuntimeError("client does not exist")
+            response = await client.auth.authenticate(
                 name=self.username, password=self.password
             )
             self._metadata = (("token", response.token),)
@@ -59,7 +64,7 @@ class AuthInterceptor(
     ) -> Union[ResponseIterableType, StreamStreamCall]:
         if self.username and self._metadata is None:
             await self._authenticate()
-        _client_call_details = ClientCallDetails(
+        client_call_details = ClientCallDetails(
             method=client_call_details.method,
             timeout=client_call_details.timeout,
             metadata=self._metadata,

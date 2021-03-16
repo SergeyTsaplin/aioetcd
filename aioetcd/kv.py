@@ -10,6 +10,9 @@ from aioetcd.common import ResponseHeader
 from ._rpc import rpc_pb2_grpc
 from ._rpc import rpc_pb2
 
+from aioetcd._rpc_stubs import kv
+
+
 if typing.TYPE_CHECKING:
     from aioetcd.client import Client
 
@@ -51,16 +54,21 @@ class SortTarget(IntEnum):
 T = typing.TypeVar("T")
 
 
-class EtcdResponse(abc.ABC):
-    @classmethod
+class TxnOperation(abc.ABC):
     @abc.abstractmethod
-    def from_protobuf(cls: typing.Type[T], pb_value, request) -> T:
+    def as_txn_operation(self) -> kv.RequestOp:
         ...
 
 
-class TxnOperation(abc.ABC):
+EtcdRequestType = typing.TypeVar("EtcdRequestType", bound=TxnOperation)
+
+
+class EtcdResponse(abc.ABC):
+    @classmethod
     @abc.abstractmethod
-    def as_txn_operation(self) -> rpc_pb2.RequestOp:
+    def from_protobuf(
+        cls: typing.Type[T], pb_value: typing.Any, request: EtcdRequestType
+    ) -> T:
         ...
 
 
@@ -74,7 +82,7 @@ class KeyValue:
     lease: int
 
     @classmethod
-    def from_protobuf(cls, pb_value) -> KeyValue:
+    def from_protobuf(cls, pb_value: kv.KeyValue) -> KeyValue:
         return KeyValue(
             key=pb_value.key,
             create_revision=pb_value.create_revision,
@@ -100,7 +108,7 @@ class CompareTargetUnion:
     value: typing.Optional[bytes] = None
     lease: typing.Optional[int] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         defined_count = (
             int(self.version is not None)
             + int(self.create_revision is not None)
@@ -115,19 +123,23 @@ class CompareTargetUnion:
         elif defined_count == 0:
             raise ValueError("One of the object parameters must be defined")
 
-    def get_value(self, target: CompareTarget):
-        if target == CompareTarget.VERSION:
+    def get_value(
+        self, target: CompareTarget
+    ) -> typing.Dict[str, typing.Union[int, bytes]]:
+        if target == CompareTarget.VERSION and self.version is not None:
             return {"version": self.version}
-        elif target == CompareTarget.CREATE:
+        elif (
+            target == CompareTarget.CREATE and self.create_revision is not None
+        ):
             return {"create_revision": self.create_revision}
-        elif target == CompareTarget.MOD:
+        elif target == CompareTarget.MOD and self.mod_revision is not None:
             return {"mod_revision": self.mod_revision}
-        elif target == CompareTarget.VALUE:
+        elif target == CompareTarget.VALUE and self.value is not None:
             return {"value": self.value}
-        elif target == CompareTarget.LEASE:
+        elif target == CompareTarget.LEASE and self.lease is not None:
             return {"lease": self.lease}
         else:
-            ValueError(f"Invalid target value: {target}")
+            raise ValueError(f"Invalid target value: {target}")
 
 
 @dataclass
@@ -138,8 +150,8 @@ class Compare:
     target_union: CompareTargetUnion
     range_end: typing.Optional[bytes] = None
 
-    def as_protobuf(self):
-        return rpc_pb2.Compare(
+    def as_protobuf(self) -> kv.Compare:
+        return rpc_pb2.Compare(  # type: ignore
             result=self.result.value,
             target=self.target.value,
             key=self.key,
@@ -156,7 +168,9 @@ class RangeResponse(EtcdResponse):
     count: int
 
     @classmethod
-    def from_protobuf(cls, pb_value, request: RangeRequest) -> RangeResponse:
+    def from_protobuf(  # type: ignore[override]
+        cls, pb_value: kv.RangeResponse, request: RangeRequest
+    ) -> RangeResponse:
         return RangeResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
             kvs=[KeyValue.from_protobuf(kv) for kv in pb_value.kvs],
@@ -180,12 +194,12 @@ class RangeRequest(TxnOperation):
     max_mod_revision: typing.Optional[int]
     min_create_revision: typing.Optional[int]
     max_create_revision: typing.Optional[int]
-    _kv: typing.Optional[rpc_pb2_grpc.KVStub] = field(
+    _kv: typing.Optional[kv.KVStub] = field(
         hash=False, compare=False, repr=False, default=None
     )
 
-    def as_protobuf(self) -> rpc_pb2.RangeRequest:
-        return rpc_pb2.RangeRequest(
+    def as_protobuf(self) -> kv.RangeRequest:
+        return rpc_pb2.RangeRequest(  # type: ignore
             key=self.key,
             range_end=self.range_end,
             limit=self.limit,
@@ -201,10 +215,12 @@ class RangeRequest(TxnOperation):
             max_create_revision=self.max_create_revision,
         )
 
-    def as_txn_operation(self) -> rpc_pb2.RequestOp:
-        return rpc_pb2.RequestOp(request_range=self.as_protobuf())
+    def as_txn_operation(self) -> kv.RequestOp:
+        return rpc_pb2.RequestOp(  # type: ignore
+            request_range=self.as_protobuf()
+        )
 
-    def __await__(self) -> RangeResponse:
+    def __await__(self) -> typing.Generator[None, None, RangeResponse]:
         if self._kv is None:
             raise TypeError("RangeRequest is not awaitable")
         response = yield from self._kv.Range(self.as_protobuf()).__await__()
@@ -219,10 +235,14 @@ class PutResponse(EtcdResponse):
     _key_name: typing.ClassVar = "response_put"
 
     @classmethod
-    def from_protobuf(cls, pb_value, request: PutRequest) -> PutResponse:
+    def from_protobuf(  # type: ignore[override]
+        cls, pb_value: kv.PutResponse, request: PutRequest
+    ) -> PutResponse:
         return PutResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
-            prev_kv=pb_value.prev_kv,
+            prev_kv=KeyValue.from_protobuf(pb_value.prev_kv)
+            if pb_value.prev_kv is not None
+            else None,
         )
 
 
@@ -234,13 +254,13 @@ class PutRequest(TxnOperation):
     prev_kv: bool
     ignore_value: bool
     ignore_lease: bool
-    _kv: typing.Optional[rpc_pb2_grpc.KVStub] = field(
+    _kv: typing.Optional[kv.KVStub] = field(
         hash=False, compare=False, repr=False, default=None
     )
     _response_cls: typing.ClassVar = PutResponse
 
-    def as_protobuf(self) -> rpc_pb2.PutRequest:
-        return rpc_pb2.PutRequest(
+    def as_protobuf(self) -> kv.PutRequest:
+        return rpc_pb2.PutRequest(  # type: ignore
             key=self.key,
             value=self.value,
             lease=self.lease,
@@ -249,10 +269,12 @@ class PutRequest(TxnOperation):
             ignore_lease=self.ignore_lease,
         )
 
-    def as_txn_operation(self) -> rpc_pb2.RequestOp:
-        return rpc_pb2.RequestOp(request_put=self.as_protobuf())
+    def as_txn_operation(self) -> kv.RequestOp:
+        return rpc_pb2.RequestOp(  # type: ignore
+            request_put=self.as_protobuf()
+        )
 
-    def __await__(self) -> PutResponse:
+    def __await__(self) -> typing.Generator[None, None, PutResponse]:
         if self._kv is None:
             raise TypeError("RangeRequest is not awaitable")
         response = yield from self._kv.Put(self.as_protobuf()).__await__()
@@ -266,8 +288,8 @@ class DeleteRangeResponse(EtcdResponse):
     prev_kvs: typing.List[KeyValue]
 
     @classmethod
-    def from_protobuf(
-        cls, pb_value, request: DeleteRangeRequest
+    def from_protobuf(  # type: ignore[override]
+        cls, pb_value: kv.DeleteRangeResponse, request: DeleteRangeRequest
     ) -> DeleteRangeResponse:
         return DeleteRangeResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -281,25 +303,29 @@ class DeleteRangeRequest(TxnOperation):
     key: bytes
     range_end: bytes
     prev_kv: bool
-    _kv: typing.Optional[rpc_pb2_grpc.KVStub] = field(
+    _kv: typing.Optional[kv.KVStub] = field(
         hash=False, compare=False, repr=False, default=None
     )
     _response_cls: typing.ClassVar = DeleteRangeResponse
 
-    def as_protobuf(self) -> rpc_pb2.PutRequest:
-        return rpc_pb2.DeleteRangeRequest(
+    def as_protobuf(self) -> kv.DeleteRangeRequest:
+        return rpc_pb2.DeleteRangeRequest(  # type: ignore
             key=self.key,
             range_end=self.range_end,
             prev_kv=self.prev_kv,
         )
 
-    def as_txn_operation(self) -> rpc_pb2.RequestOp:
-        return rpc_pb2.RequestOp(request_delete_range=self.as_protobuf())
+    def as_txn_operation(self) -> kv.RequestOp:
+        return rpc_pb2.RequestOp(  # type: ignore
+            request_delete_range=self.as_protobuf()
+        )
 
-    def __await__(self) -> DeleteRangeResponse:
+    def __await__(self) -> typing.Generator[None, None, DeleteRangeResponse]:
         if self._kv is None:
             raise TypeError("RangeRequest is not awaitable")
-        response = self._kv.DeleteRange(self.as_protobuf()).__await__()
+        response = yield from self._kv.DeleteRange(
+            self.as_protobuf()
+        ).__await__()
         return DeleteRangeResponse.from_protobuf(response, self)
 
 
@@ -312,7 +338,9 @@ class TxnResponse(EtcdResponse):
     _key_name: typing.ClassVar = "response_txn"
 
     @classmethod
-    def from_protobuf(cls, pb_value, request: TxnRequest):
+    def from_protobuf(  # type: ignore[override]
+        cls, pb_value: kv.TxnResponse, request: TxnRequest
+    ) -> TxnResponse:
         succeeded = pb_value.succeeded
         if succeeded:
             responses = [
@@ -339,22 +367,24 @@ class TxnRequest(TxnOperation):
     compare: typing.Sequence[Compare]
     success: typing.Sequence[TxnOperation]
     failure: typing.Sequence[TxnOperation]
-    _kv: typing.Optional[rpc_pb2_grpc.KVStub] = field(
+    _kv: typing.Optional[kv.KVStub] = field(
         hash=False, compare=False, repr=False, default=None
     )
     _response_cls: typing.ClassVar = TxnResponse
 
-    def as_protobuf(self):
-        return rpc_pb2.TxnRequest(
+    def as_protobuf(self) -> kv.TxnResponse:
+        return rpc_pb2.TxnRequest(  # type: ignore
             compare=[c.as_protobuf() for c in self.compare],
             success=[r.as_txn_operation() for r in self.success],
             failure=[r.as_txn_operation() for r in self.failure],
         )
 
-    def as_txn_operation(self) -> rpc_pb2.RequestOp:
-        return rpc_pb2.RequestOp(request_txn=self.as_protobuf())
+    def as_txn_operation(self) -> kv.RequestOp:
+        return rpc_pb2.RequestOp(  # type: ignore
+            request_txn=self.as_protobuf()
+        )
 
-    def __await__(self) -> TxnResponse:
+    def __await__(self) -> typing.Generator[None, None, TxnResponse]:
         if self._kv is None:
             raise TypeError("RangeRequest is not awaitable")
         response = yield from self._kv.Txn(self.as_protobuf()).__await__()
@@ -372,26 +402,36 @@ class ResponseOp:
     response_txn: typing.Optional[TxnResponse] = None
 
     @classmethod
-    def from_protobuf(cls, pb_value, request: TxnOperation) -> ResponseOp:
+    def from_protobuf(
+        cls, pb_value: kv.ResponseOp, request: TxnOperation
+    ) -> ResponseOp:
         response_range = None
         response_put = None
         response_delete_range = None
         response_txn = None
-        response: typing.Union[RangeResponse, PutResponse, DeleteRangeResponse, TxnResponse, None] = None
+        response: typing.Union[
+            RangeResponse, PutResponse, DeleteRangeResponse, TxnResponse, None
+        ] = None
         request_type = type(request)
-        if request_type == RangeRequest:
+        if (
+            request_type == RangeRequest
+            and pb_value.response_range is not None
+        ):
             if typing.TYPE_CHECKING:
                 request = typing.cast(RangeRequest, request)
             response = response_range = RangeResponse.from_protobuf(
                 pb_value.response_range, request
             )
-        elif request_type == PutRequest:
+        elif request_type == PutRequest and pb_value.response_put is not None:
             if typing.TYPE_CHECKING:
                 request = typing.cast(PutRequest, request)
             response = response_put = PutResponse.from_protobuf(
                 pb_value.response_put, request
             )
-        elif request_type == DeleteRangeRequest:
+        elif (
+            request_type == DeleteRangeRequest
+            and pb_value.response_delete_range is not None
+        ):
             if typing.TYPE_CHECKING:
                 request = typing.cast(DeleteRangeRequest, request)
             response = (
@@ -399,7 +439,7 @@ class ResponseOp:
             ) = DeleteRangeResponse.from_protobuf(
                 pb_value.response_delete_range, request
             )
-        elif request_type == TxnRequest:
+        elif request_type == TxnRequest and pb_value.response_txn is not None:
             if typing.TYPE_CHECKING:
                 request = typing.cast(TxnRequest, request)
             response = response_txn = TxnResponse.from_protobuf(
@@ -419,7 +459,10 @@ class ResponseOp:
 class KVApi:
     def __init__(self, client: Client):
         self._client = client
-        self._kv_stub = rpc_pb2_grpc.KVStub(channel=client.channel)
+        self._kv_stub: kv.KVStub = typing.cast(
+            kv.KVStub,
+            rpc_pb2_grpc.KVStub(channel=client.channel),  # type: ignore
+        )
 
     def range(
         self,

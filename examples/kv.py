@@ -25,7 +25,7 @@ wNTWWedoAiEA0pU5UNsa1cSwADHI6WIbsimoSkbogkDq0QATw5OGypI=
 """
 
 
-async def main():
+async def main() -> None:
     # client = Client(endpoint="localhost:2377", ssl=True, username="root", password="root", ca_cert=CA_CERT)
     # client = Client(
     #     endpoint="localhost:2379", username="root", password="root"

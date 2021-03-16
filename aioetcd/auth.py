@@ -4,9 +4,10 @@ import dataclasses
 from enum import Enum
 
 from .common import ResponseHeader
+from ._rpc_stubs import auth
 
-from ._rpc import rpc_pb2_grpc  # type: ignore
-from ._rpc import rpc_pb2  # type: ignore
+from ._rpc import rpc_pb2_grpc
+from ._rpc import rpc_pb2
 
 if typing.TYPE_CHECKING:
     from .client import Client
@@ -25,11 +26,11 @@ class AuthenticateResponse:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: rpc_pb2.AuthenticateResponse
+        cls, pb_value: auth.AuthenticateResponseProto
     ) -> AuthenticateResponse:
         return AuthenticateResponse(
-            header=ResponseHeader.from_protobuf(pb_value.header),  # type: ignore
-            token=pb_value.token,  # type: ignore
+            header=ResponseHeader.from_protobuf(pb_value.header),
+            token=pb_value.token,
         )
 
 

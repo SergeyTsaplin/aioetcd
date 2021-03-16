@@ -1,15 +1,16 @@
 import asyncio
 from aioetcd.client import Client
+from aioetcd.lease import KeepAliveResponse
 
 
 counter = 0
 
 
-async def keep_alive_callback(response):
+async def keep_alive_callback(response: KeepAliveResponse) -> None:
     print(response)
 
 
-async def main(loop: asyncio.AbstractEventLoop):
+async def main(loop: asyncio.AbstractEventLoop) -> None:
     client = Client(
         endpoint="localhost:2379", username="root", password="root"
     )

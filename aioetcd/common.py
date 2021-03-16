@@ -1,4 +1,7 @@
+from __future__ import annotations
 from dataclasses import dataclass
+
+from aioetcd._rpc_stubs.common import ResponseHeader as ResponseHeaderProto
 
 
 @dataclass
@@ -9,7 +12,7 @@ class ResponseHeader:
     raft_term: int
 
     @classmethod
-    def from_protobuf(cls, pb_header):
+    def from_protobuf(cls, pb_header: ResponseHeaderProto) -> ResponseHeader:
         return ResponseHeader(
             cluster_id=pb_header.cluster_id,
             member_id=pb_header.member_id,
