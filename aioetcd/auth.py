@@ -1,19 +1,20 @@
 from __future__ import annotations
 import typing
 import dataclasses
-from enum import Enum
+from enum import IntEnum
 
 from .common import ResponseHeader
 from ._rpc_stubs import auth
 
 from ._rpc import rpc_pb2_grpc
 from ._rpc import rpc_pb2
+from ._rpc import auth_pb2
 
 if typing.TYPE_CHECKING:
     from .client import Client
 
 
-class PermissionType(Enum):
+class PermissionType(IntEnum):
     READ = 0
     WRITE = 1
     READWRITE = 2
@@ -46,6 +47,60 @@ class Permission:
     range_end: bytes
 
 
+@dataclasses.dataclass
+class EnableResponse:
+    header: ResponseHeader
+
+    @classmethod
+    def from_protobuf(
+        cls, pb_value: auth.AuthEnableResponse
+    ) -> EnableResponse:
+        return EnableResponse(
+            header=ResponseHeader.from_protobuf(pb_value.header),
+        )
+
+
+@dataclasses.dataclass
+class DisableResponse:
+    header: ResponseHeader
+
+    @classmethod
+    def from_protobuf(
+        cls, pb_value: auth.AuthDisableResponse
+    ) -> DisableResponse:
+        return DisableResponse(
+            header=ResponseHeader.from_protobuf(pb_value.header),
+        )
+
+
+@dataclasses.dataclass
+class UserAddResponse:
+    header: ResponseHeader
+
+    @classmethod
+    def from_protobuf(
+        cls, pb_value: auth.AuthUserAddResponse
+    ) -> UserAddResponse:
+        return UserAddResponse(
+            header=ResponseHeader.from_protobuf(pb_value.header),
+        )
+
+
+@dataclasses.dataclass
+class UserGetResponse:
+    header: ResponseHeader
+    roles: typing.List[str]
+
+    @classmethod
+    def from_protobuf(
+        cls, pb_value: auth.AuthUserGetResponse
+    ) -> UserGetResponse:
+        return UserGetResponse(
+            header=ResponseHeader.from_protobuf(pb_value.header),
+            roles=[role for role in pb_value.roles],
+        )
+
+
 class AuthApi:
     def __init__(self, client: Client):
         self._client = client
@@ -54,25 +109,50 @@ class AuthApi:
             rpc_pb2_grpc.AuthStub(channel=client.channel),  # type: ignore
         )
 
-    # async def enable(self):
-    #     ...
+    async def enable(self) -> EnableResponse:
+        """Enables authentication."""
+        response = await self._auth_stub.AuthEnable(
+            rpc_pb2.AuthEnableRequest()
+        )
+        return EnableResponse.from_protobuf(response)
 
-    # async def disable(self):
-    #     ...
+    async def disable(self) -> DisableResponse:
+        """disables authentication."""
+        response = await self._auth_stub.AuthDisable(
+            rpc_pb2.AuthDisableRequest()
+        )
+        return DisableResponse.from_protobuf(response)
 
     async def authenticate(
         self, name: str, password: str
     ) -> AuthenticateResponse:
+        """processes an authenticate request."""
         response = await self._auth_stub.Authenticate(
             rpc_pb2.AuthenticateRequest(name=name, password=password)
         )
         return AuthenticateResponse.from_protobuf(response)
 
-    # async def user_add(self, name: str, password: str, options):
-    #     ...
+    async def user_add(
+        self, name: str, password: typing.Optional[str] = None
+    ) -> UserAddResponse:
+        """adds a new user. User name cannot be empty."""
+        if password is None:
+            options = auth_pb2.UserAddOptions(no_password=True)
+        else:
+            options = auth_pb2.UserAddOptions(no_password=False)
+        response = await self._auth_stub.UserAdd(
+            rpc_pb2.AuthUserAddRequest(
+                name=name, password=password, options=options
+            )
+        )
+        return UserAddResponse.from_protobuf(response)
 
-    # async def user_get(self, name: str):
-    #     ...
+    async def user_get(self, name: str) -> UserGetResponse:
+        """gets detailed user information."""
+        response = await self._auth_stub.UserGet(
+            rpc_pb2.AuthUserGetRequest(name=name)
+        )
+        return UserGetResponse.from_protobuf(response)
 
     # async def user_list(self):
     #     ...

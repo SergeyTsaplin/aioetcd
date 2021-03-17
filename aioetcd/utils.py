@@ -27,7 +27,7 @@ if typing.TYPE_CHECKING:
     from .client import Client
 
 
-AUTHENTICATED_METHOD = b"/etcdserverpb.Auth/Authenticate"
+AUTHENTICATE_METHOD = b"/etcdserverpb.Auth/Authenticate"
 
 
 class AuthInterceptor(
@@ -39,7 +39,6 @@ class AuthInterceptor(
         self.username = username
         self.password = password
         self.client = weakref.ref(client)
-        self._call_credentials = None
         self._metadata: typing.Optional[
             typing.Tuple[typing.Tuple[str, str]]
         ] = None
@@ -87,7 +86,7 @@ class AuthInterceptor(
         client_call_details: ClientCallDetails,
         request: RequestType,
     ) -> Union[UnaryUnaryCall, ResponseType]:
-        if AUTHENTICATED_METHOD == client_call_details.method:
+        if AUTHENTICATE_METHOD == client_call_details.method:
             return await continuation(client_call_details, request)
         if self.username and self._metadata is None:
             await self._authenticate()
