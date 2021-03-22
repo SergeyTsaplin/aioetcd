@@ -5,66 +5,7 @@ from typing_extensions import Protocol
 
 from grpc.aio._channel import Channel  # type: ignore
 
-from .common import ResponseHeader
-
-
-class LeassGrantRequest(Protocol):
-    def __init__(self, TTL: int, ID: int):
-        ...
-
-
-class LeaseGrantResponse(Protocol):
-    header: ResponseHeader
-    ID: int
-    TTL: int
-    error: str
-
-
-class LeaseRevokeRequest(Protocol):
-    def __init__(self, ID: int):
-        ...
-
-
-class LeaseRevokeResponse(Protocol):
-    header: ResponseHeader
-
-
-class LeaseLeasesRequest(Protocol):
-    def __init__(self) -> None:
-        ...
-
-
-class LeaseStatus(Protocol):
-    ID: int
-
-
-class LeaseLeasesResponse(Protocol):
-    header: ResponseHeader
-    leases: typing.List[LeaseStatus]
-
-
-class LeaseTimeToLiveRequest(Protocol):
-    def __init__(self, ID: int, keys: bool):
-        ...
-
-
-class LeaseTimeToLiveResponse(Protocol):
-    header: ResponseHeader
-    ID: int
-    TTL: int
-    grantedTTL: int
-    keys: typing.List[bytes]
-
-
-class LeaseKeepAliveResponse(Protocol):
-    header: ResponseHeader
-    ID: int
-    TTL: int
-
-
-class LeaseKeepAliveRequest(Protocol):
-    def __init__(self, ID: int):
-        ...
+from aioetcd._rpc import rpc_pb2
 
 
 class LeaseStub(Protocol):
@@ -72,28 +13,37 @@ class LeaseStub(Protocol):
         ...
 
     async def LeaseGrant(
-        request: LeassGrantRequest, timeout: typing.Optional[int] = None
-    ) -> LeaseGrantResponse:
+        self,
+        request: rpc_pb2.LeaseGrantRequest,
+        timeout: typing.Optional[int] = None,
+    ) -> rpc_pb2.LeaseGrantResponse:
         ...
 
     async def LeaseRevoke(
-        request: LeaseRevokeRequest, timeout: typing.Optional[int] = None
-    ) -> LeaseRevokeResponse:
+        self,
+        request: rpc_pb2.LeaseRevokeRequest,
+        timeout: typing.Optional[int] = None,
+    ) -> rpc_pb2.LeaseRevokeResponse:
         ...
 
     async def LeaseTimeToLive(
-        request: LeaseTimeToLiveRequest,
+        self,
+        request: rpc_pb2.LeaseTimeToLiveRequest,
         timeout: typing.Optional[int] = None,
-    ) -> LeaseTimeToLiveResponse:
+    ) -> rpc_pb2.LeaseTimeToLiveResponse:
         ...
 
     async def LeaseLeases(
-        request: LeaseLeasesRequest, timeout: typing.Optional[int] = None
-    ) -> LeaseLeasesResponse:
+        self,
+        request: rpc_pb2.LeaseLeasesRequest,
+        timeout: typing.Optional[int] = None,
+    ) -> rpc_pb2.LeaseLeasesResponse:
         ...
 
     def LeaseKeepAlive(
         self,
-        request_iterator: typing.AsyncGenerator[LeaseKeepAliveRequest, None],
-    ) -> typing.AsyncGenerator[LeaseKeepAliveResponse, None]:
+        request_iterator: typing.AsyncGenerator[
+            rpc_pb2.LeaseKeepAliveRequest, None
+        ],
+    ) -> typing.AsyncGenerator[rpc_pb2.LeaseKeepAliveResponse, None]:
         ...

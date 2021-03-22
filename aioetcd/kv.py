@@ -9,6 +9,7 @@ from aioetcd.common import ResponseHeader
 
 from ._rpc import rpc_pb2_grpc
 from ._rpc import rpc_pb2
+from ._rpc import kv_pb2
 
 from aioetcd._rpc_stubs import kv
 
@@ -56,7 +57,7 @@ T = typing.TypeVar("T")
 
 class TxnOperation(abc.ABC):
     @abc.abstractmethod
-    def as_txn_operation(self) -> kv.RequestOp:
+    def as_txn_operation(self) -> rpc_pb2.RequestOp:
         ...
 
 
@@ -82,7 +83,7 @@ class KeyValue:
     lease: int
 
     @classmethod
-    def from_protobuf(cls, pb_value: kv.KeyValue) -> KeyValue:
+    def from_protobuf(cls, pb_value: kv_pb2.KeyValue) -> KeyValue:
         return KeyValue(
             key=pb_value.key,
             create_revision=pb_value.create_revision,
@@ -150,13 +151,17 @@ class Compare:
     target_union: CompareTargetUnion
     range_end: typing.Optional[bytes] = None
 
-    def as_protobuf(self) -> kv.Compare:
-        return rpc_pb2.Compare(  # type: ignore
-            result=self.result.value,
-            target=self.target.value,
+    def as_protobuf(self) -> rpc_pb2.Compare:
+        return rpc_pb2.Compare(
+            result=typing.cast(
+                "rpc_pb2.Compare.CompareResult.V", self.result.value
+            ),
+            target=typing.cast(
+                "rpc_pb2.Compare.CompareTarget.V", self.target.value
+            ),
             key=self.key,
-            range_end=self.range_end,
-            **self.target_union.get_value(self.target),
+            range_end=self.range_end or b"",
+            **self.target_union.get_value(self.target),  # type: ignore
         )
 
 
@@ -169,7 +174,7 @@ class RangeResponse(EtcdResponse):
 
     @classmethod
     def from_protobuf(  # type: ignore[override]
-        cls, pb_value: kv.RangeResponse, request: RangeRequest
+        cls, pb_value: rpc_pb2.RangeResponse, request: RangeRequest
     ) -> RangeResponse:
         return RangeResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -198,27 +203,29 @@ class RangeRequest(TxnOperation):
         hash=False, compare=False, repr=False, default=None
     )
 
-    def as_protobuf(self) -> kv.RangeRequest:
-        return rpc_pb2.RangeRequest(  # type: ignore
+    def as_protobuf(self) -> rpc_pb2.RangeRequest:
+        return rpc_pb2.RangeRequest(
             key=self.key,
-            range_end=self.range_end,
+            range_end=self.range_end,  # type: ignore
             limit=self.limit,
             revision=self.revision,
-            sort_order=self.sort_order.value,
-            sort_target=self.sort_target.value,
+            sort_order=typing.cast(
+                "rpc_pb2.RangeRequest.SortOrder.V", self.sort_order.value
+            ),
+            sort_target=typing.cast(
+                "rpc_pb2.RangeRequest.SortTarget.V", self.sort_target.value
+            ),
             serializable=self.serializable,
             keys_only=self.keys_only,
             count_only=self.count_only,
-            min_mod_revision=self.min_mod_revision,
-            max_mod_revision=self.max_mod_revision,
-            min_create_revision=self.min_create_revision,
-            max_create_revision=self.max_create_revision,
+            min_mod_revision=self.min_mod_revision,  # type: ignore
+            max_mod_revision=self.max_mod_revision,  # type: ignore
+            min_create_revision=self.min_create_revision,  # type: ignore
+            max_create_revision=self.max_create_revision,  # type: ignore
         )
 
-    def as_txn_operation(self) -> kv.RequestOp:
-        return rpc_pb2.RequestOp(  # type: ignore
-            request_range=self.as_protobuf()
-        )
+    def as_txn_operation(self) -> rpc_pb2.RequestOp:
+        return rpc_pb2.RequestOp(request_range=self.as_protobuf())
 
     def __await__(self) -> typing.Generator[None, None, RangeResponse]:
         if self._kv is None:
@@ -236,7 +243,7 @@ class PutResponse(EtcdResponse):
 
     @classmethod
     def from_protobuf(  # type: ignore[override]
-        cls, pb_value: kv.PutResponse, request: PutRequest
+        cls, pb_value: rpc_pb2.PutResponse, request: PutRequest
     ) -> PutResponse:
         return PutResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -259,8 +266,8 @@ class PutRequest(TxnOperation):
     )
     _response_cls: typing.ClassVar = PutResponse
 
-    def as_protobuf(self) -> kv.PutRequest:
-        return rpc_pb2.PutRequest(  # type: ignore
+    def as_protobuf(self) -> rpc_pb2.PutRequest:
+        return rpc_pb2.PutRequest(
             key=self.key,
             value=self.value,
             lease=self.lease,
@@ -269,10 +276,8 @@ class PutRequest(TxnOperation):
             ignore_lease=self.ignore_lease,
         )
 
-    def as_txn_operation(self) -> kv.RequestOp:
-        return rpc_pb2.RequestOp(  # type: ignore
-            request_put=self.as_protobuf()
-        )
+    def as_txn_operation(self) -> rpc_pb2.RequestOp:
+        return rpc_pb2.RequestOp(request_put=self.as_protobuf())
 
     def __await__(self) -> typing.Generator[None, None, PutResponse]:
         if self._kv is None:
@@ -289,7 +294,7 @@ class DeleteRangeResponse(EtcdResponse):
 
     @classmethod
     def from_protobuf(  # type: ignore[override]
-        cls, pb_value: kv.DeleteRangeResponse, request: DeleteRangeRequest
+        cls, pb_value: rpc_pb2.DeleteRangeResponse, request: DeleteRangeRequest
     ) -> DeleteRangeResponse:
         return DeleteRangeResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -308,17 +313,15 @@ class DeleteRangeRequest(TxnOperation):
     )
     _response_cls: typing.ClassVar = DeleteRangeResponse
 
-    def as_protobuf(self) -> kv.DeleteRangeRequest:
-        return rpc_pb2.DeleteRangeRequest(  # type: ignore
+    def as_protobuf(self) -> rpc_pb2.DeleteRangeRequest:
+        return rpc_pb2.DeleteRangeRequest(
             key=self.key,
             range_end=self.range_end,
             prev_kv=self.prev_kv,
         )
 
-    def as_txn_operation(self) -> kv.RequestOp:
-        return rpc_pb2.RequestOp(  # type: ignore
-            request_delete_range=self.as_protobuf()
-        )
+    def as_txn_operation(self) -> rpc_pb2.RequestOp:
+        return rpc_pb2.RequestOp(request_delete_range=self.as_protobuf())
 
     def __await__(self) -> typing.Generator[None, None, DeleteRangeResponse]:
         if self._kv is None:
@@ -339,7 +342,7 @@ class TxnResponse(EtcdResponse):
 
     @classmethod
     def from_protobuf(  # type: ignore[override]
-        cls, pb_value: kv.TxnResponse, request: TxnRequest
+        cls, pb_value: rpc_pb2.TxnResponse, request: TxnRequest
     ) -> TxnResponse:
         succeeded = pb_value.succeeded
         if succeeded:
@@ -372,17 +375,15 @@ class TxnRequest(TxnOperation):
     )
     _response_cls: typing.ClassVar = TxnResponse
 
-    def as_protobuf(self) -> kv.TxnResponse:
-        return rpc_pb2.TxnRequest(  # type: ignore
+    def as_protobuf(self) -> rpc_pb2.TxnRequest:
+        return rpc_pb2.TxnRequest(
             compare=[c.as_protobuf() for c in self.compare],
             success=[r.as_txn_operation() for r in self.success],
             failure=[r.as_txn_operation() for r in self.failure],
         )
 
-    def as_txn_operation(self) -> kv.RequestOp:
-        return rpc_pb2.RequestOp(  # type: ignore
-            request_txn=self.as_protobuf()
-        )
+    def as_txn_operation(self) -> rpc_pb2.RequestOp:
+        return rpc_pb2.RequestOp(request_txn=self.as_protobuf())
 
     def __await__(self) -> typing.Generator[None, None, TxnResponse]:
         if self._kv is None:
@@ -403,7 +404,7 @@ class ResponseOp:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: kv.ResponseOp, request: TxnOperation
+        cls, pb_value: rpc_pb2.ResponseOp, request: TxnOperation
     ) -> ResponseOp:
         response_range = None
         response_put = None

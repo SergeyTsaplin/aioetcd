@@ -27,7 +27,7 @@ class AuthenticateResponse:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: auth.AuthenticateResponse
+        cls, pb_value: rpc_pb2.AuthenticateResponse
     ) -> AuthenticateResponse:
         return AuthenticateResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -53,7 +53,7 @@ class EnableResponse:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: auth.AuthEnableResponse
+        cls, pb_value: rpc_pb2.AuthEnableResponse
     ) -> EnableResponse:
         return EnableResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -66,7 +66,7 @@ class DisableResponse:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: auth.AuthDisableResponse
+        cls, pb_value: rpc_pb2.AuthDisableResponse
     ) -> DisableResponse:
         return DisableResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -79,7 +79,7 @@ class UserAddResponse:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: auth.AuthUserAddResponse
+        cls, pb_value: rpc_pb2.AuthUserAddResponse
     ) -> UserAddResponse:
         return UserAddResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -93,7 +93,7 @@ class UserGetResponse:
 
     @classmethod
     def from_protobuf(
-        cls, pb_value: auth.AuthUserGetResponse
+        cls, pb_value: rpc_pb2.AuthUserGetResponse
     ) -> UserGetResponse:
         return UserGetResponse(
             header=ResponseHeader.from_protobuf(pb_value.header),
@@ -132,9 +132,7 @@ class AuthApi:
         )
         return AuthenticateResponse.from_protobuf(response)
 
-    async def user_add(
-        self, name: str, password: typing.Optional[str] = None
-    ) -> UserAddResponse:
+    async def user_add(self, name: str, password: str) -> UserAddResponse:
         """adds a new user. User name cannot be empty."""
         if password is None:
             options = auth_pb2.UserAddOptions(no_password=True)

@@ -1,184 +1,9 @@
 from __future__ import annotations
-import typing
 from typing_extensions import Protocol
-from enum import IntEnum
 
 from grpc.aio._channel import Channel  # type: ignore
 
-from .common import ResponseHeader
-
-
-class UserAddOptions(Protocol):
-    no_password: bool
-
-    def __init__(self, no_password: bool):
-        ...
-
-
-class PermissionType(IntEnum):
-    READ = 0
-    WRITE = 1
-    READWRITE = 2
-
-
-class Permission(Protocol):
-    permType: PermissionType
-    key: bytes
-    range_end: bytes
-
-
-class AuthEnableRequest(Protocol):
-    def __init__(self) -> None:
-        ...
-
-
-class AuthEnableResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthDisableRequest(Protocol):
-    def __init__(self) -> None:
-        ...
-
-
-class AuthDisableResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthenticateRequest(Protocol):
-    def __init__(self, name: str, password: str):
-        ...
-
-
-class AuthenticateResponse(Protocol):
-    header: ResponseHeader
-    token: str
-
-
-class AuthUserAddRequest(Protocol):
-    def __init__(
-        self,
-        name: str,
-        password: typing.Optional[str],
-        options: UserAddOptions,
-    ):
-        ...
-
-
-class AuthUserAddResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthUserGetRequest(Protocol):
-    def __init__(self, name: str):
-        ...
-
-
-class AuthUserGetResponse(Protocol):
-    header: ResponseHeader
-    roles: typing.List[str]
-
-
-class AuthUserListRequest(Protocol):
-    def __init__(self) -> None:
-        ...
-
-
-class AuthUserListResponse(Protocol):
-    header: ResponseHeader
-    users: typing.List[str]
-
-
-class AuthUserDeleteRequest(Protocol):
-    def __init__(self, name: str):
-        ...
-
-
-class AuthUserDeleteResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthUserChangePasswordRequest(Protocol):
-    def __init__(self, name: str, password: str):
-        ...
-
-
-class AuthUserChangePasswordResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthUserGrantRoleRequest(Protocol):
-    def __init__(self, user: str, role: str):
-        ...
-
-
-class AuthUserGrantRoleResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthUserRevokeRoleRequest(Protocol):
-    def __init__(self, user: str, role: str):
-        ...
-
-
-class AuthUserRevokeRoleResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthRoleAddRequest(Protocol):
-    def __init__(self, name: str):
-        ...
-
-
-class AuthRoleAddResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthRoleGetRequest(Protocol):
-    def __init__(self, role: str):
-        ...
-
-
-class AuthRoleGetResponse(Protocol):
-    header: ResponseHeader
-    perm: typing.List[Permission]
-
-
-class AuthRoleListRequest(Protocol):
-    def __init__(self) -> None:
-        ...
-
-
-class AuthRoleListResponse(Protocol):
-    header: ResponseHeader
-    roles: typing.List[str]
-
-
-class AuthRoleDeleteRequest(Protocol):
-    def __init__(self, role: str):
-        ...
-
-
-class AuthRoleDeleteResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthRoleGrantPermissionRequest(Protocol):
-    def __init__(self, name: str, perm: Permission):
-        ...
-
-
-class AuthRoleGrantPermissionResponse(Protocol):
-    header: ResponseHeader
-
-
-class AuthRoleRevokePermissionRequest(Protocol):
-    def __init__(self, role: str, key: bytes, range_end: bytes):
-        ...
-
-
-class AuthRoleRevokePermissionResponse(Protocol):
-    header: ResponseHeader
+from aioetcd._rpc import rpc_pb2
 
 
 class AuthStub(Protocol):
@@ -186,81 +11,81 @@ class AuthStub(Protocol):
         ...
 
     async def AuthEnable(
-        self, request: AuthEnableRequest
-    ) -> AuthEnableResponse:
+        self, request: rpc_pb2.AuthEnableRequest
+    ) -> rpc_pb2.AuthEnableResponse:
         ...
 
     async def AuthDisable(
-        self, request: AuthDisableRequest
-    ) -> AuthDisableResponse:
+        self, request: rpc_pb2.AuthDisableRequest
+    ) -> rpc_pb2.AuthDisableResponse:
         ...
 
     async def Authenticate(
-        self, request: AuthenticateRequest
-    ) -> AuthenticateResponse:
+        self, request: rpc_pb2.AuthenticateRequest
+    ) -> rpc_pb2.AuthenticateResponse:
         ...
 
     async def UserAdd(
-        self, request: AuthUserAddRequest
-    ) -> AuthUserAddResponse:
+        self, request: rpc_pb2.AuthUserAddRequest
+    ) -> rpc_pb2.AuthUserAddResponse:
         ...
 
     async def UserGet(
-        self, request: AuthUserGetRequest
-    ) -> AuthUserGetResponse:
+        self, request: rpc_pb2.AuthUserGetRequest
+    ) -> rpc_pb2.AuthUserGetResponse:
         ...
 
     async def UserList(
-        self, request: AuthUserListRequest
-    ) -> AuthUserListResponse:
+        self, request: rpc_pb2.AuthUserListRequest
+    ) -> rpc_pb2.AuthUserListResponse:
         ...
 
     async def UserDelete(
-        self, request: AuthUserDeleteRequest
-    ) -> AuthUserDeleteResponse:
+        self, request: rpc_pb2.AuthUserDeleteRequest
+    ) -> rpc_pb2.AuthUserDeleteResponse:
         ...
 
     async def UserChangePassword(
-        self, request: AuthUserChangePasswordRequest
-    ) -> AuthUserChangePasswordResponse:
+        self, request: rpc_pb2.AuthUserChangePasswordRequest
+    ) -> rpc_pb2.AuthUserChangePasswordResponse:
         ...
 
     async def UserGrantRole(
-        self, request: AuthUserGrantRoleRequest
-    ) -> AuthUserGrantRoleResponse:
+        self, request: rpc_pb2.AuthUserGrantRoleRequest
+    ) -> rpc_pb2.AuthUserGrantRoleResponse:
         ...
 
     async def UserRevokeRole(
-        self, request: AuthUserRevokeRoleRequest
-    ) -> AuthUserRevokeRoleResponse:
+        self, request: rpc_pb2.AuthUserRevokeRoleRequest
+    ) -> rpc_pb2.AuthUserRevokeRoleResponse:
         ...
 
     async def RoleAdd(
-        self, request: AuthRoleAddRequest
-    ) -> AuthRoleAddResponse:
+        self, request: rpc_pb2.AuthRoleAddRequest
+    ) -> rpc_pb2.AuthRoleAddResponse:
         ...
 
     async def RoleGet(
-        self, request: AuthRoleGetRequest
-    ) -> AuthRoleGetResponse:
+        self, request: rpc_pb2.AuthRoleGetRequest
+    ) -> rpc_pb2.AuthRoleGetResponse:
         ...
 
     async def RoleList(
-        self, request: AuthRoleListRequest
-    ) -> AuthRoleListResponse:
+        self, request: rpc_pb2.AuthRoleListRequest
+    ) -> rpc_pb2.AuthRoleListResponse:
         ...
 
     async def RoleDelete(
-        self, request: AuthRoleDeleteRequest
-    ) -> AuthRoleDeleteResponse:
+        self, request: rpc_pb2.AuthRoleDeleteRequest
+    ) -> rpc_pb2.AuthRoleDeleteResponse:
         ...
 
     async def RoleGrantPermission(
-        self, request: AuthRoleGrantPermissionRequest
-    ) -> AuthRoleGrantPermissionResponse:
+        self, request: rpc_pb2.AuthRoleGrantPermissionRequest
+    ) -> rpc_pb2.AuthRoleGrantPermissionResponse:
         ...
 
     async def RoleRevokePermission(
-        self, request: AuthRoleRevokePermissionRequest
-    ) -> AuthRoleRevokePermissionResponse:
+        self, request: rpc_pb2.AuthRoleRevokePermissionRequest
+    ) -> rpc_pb2.AuthRoleRevokePermissionResponse:
         ...

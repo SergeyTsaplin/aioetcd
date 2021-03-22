@@ -124,7 +124,7 @@ class KeepAliveLease:
 
 async def _keep_alive_request_generator(
     id: int, period: int, finisher: typing.Optional[asyncio.Event] = None
-) -> typing.AsyncGenerator[lease.LeaseKeepAliveRequest, None]:
+) -> typing.AsyncGenerator[rpc_pb2.LeaseKeepAliveRequest, None]:
     if finisher is None:
         finisher = asyncio.Event()
     while not finisher.is_set():
@@ -200,9 +200,9 @@ class LeaseApi:
     def _keep_alive(
         self,
         request_iterator: typing.AsyncGenerator[
-            lease.LeaseKeepAliveRequest, None
+            rpc_pb2.LeaseKeepAliveRequest, None
         ],
-    ) -> typing.AsyncGenerator[lease.LeaseKeepAliveResponse, None]:
+    ) -> typing.AsyncGenerator[rpc_pb2.LeaseKeepAliveResponse, None]:
         return self._lease_stub.LeaseKeepAlive(request_iterator)
 
     async def keep_alive(
