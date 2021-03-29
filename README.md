@@ -28,15 +28,5 @@ Currently supports the following RPC's:
     --python_out=aioetcd/_rpc \
     --grpc_python_out=aioetcd/_rpc \
     --mypy_out=aioetcd/_rpc2 \
-    --mypy_grpc_out=aioetcd/_rpc2 \
-    proto/*.proto
-  ```
-
-  ```bash
-  python3 -m grpc.tools.protoc \
-    -Iproto \
-    --python_out=aioetcd/_rpc \
-    --grpc_python_out=aioetcd/_rpc \
-    --mypy_out=aioetcd/_rpc2 \
     proto/*.proto
   ```
