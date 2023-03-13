@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "aioetcd"
+version = "0.1.0-alpha.1"
+description = "Asynchronous client library for Etcd v3"
+authors = ["Sergey Tsaplin <me@sergeytsaplin.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+grpcio = "^1.32.0"
+protobuf = "<4.0"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.960"
+pytest = "^7.1.2"
+black = "^22.3.0"
+mypy-protobuf = {version = "^3.2.0", extras = ["gen"]}
+grpcio-tools = {version = "^1.46.3", extras = ["gen"]}
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "aioetcd._rpc.*"
+ignore_errors = true

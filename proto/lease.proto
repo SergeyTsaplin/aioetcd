@@ -1,0 +1,18 @@
+syntax = "proto3";
+package leasepb;
+
+import "rpc.proto";
+
+message Lease {
+  int64 ID = 1;
+  int64 TTL = 2;
+  int64 RemainingTTL = 3;
+}
+
+message LeaseInternalRequest {
+  etcdserverpb.LeaseTimeToLiveRequest LeaseTimeToLiveRequest = 1;
+}
+
+message LeaseInternalResponse {
+  etcdserverpb.LeaseTimeToLiveResponse LeaseTimeToLiveResponse = 1;
+}
